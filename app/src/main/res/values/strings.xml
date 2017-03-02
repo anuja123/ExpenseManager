@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Expense Manager</string>
+    <string name="expense_title">Title</string>
+    <string name="expense_id">0123456789</string>
+    <string name="expense_date">18 Feb 2017 11:56 AM</string>
+    <string name="expense_desc">Recharge of Idea Mobile 8477981111</string>
+    <string name="Rs">\u20B9</string>
+</resources>

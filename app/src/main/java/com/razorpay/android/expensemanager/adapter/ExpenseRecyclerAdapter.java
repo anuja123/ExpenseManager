@@ -13,7 +13,9 @@ import android.view.Window;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.razorpay.android.expensemanager.R;
 import com.razorpay.android.expensemanager.model.API;
@@ -37,16 +39,20 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ExpenseRecyclerAdapter extends RecyclerView.Adapter<ExpenseRecyclerAdapter.ExpenseViewHolder> {
     private Context mContext;
-    private ArrayList<TransactionDetails> transactionDetails;
+    private ArrayList<TransactionDetails> transactionDetails, allTransactionDetails;
+    private String msg;
 
-    public ExpenseRecyclerAdapter(Context mContext, ArrayList<TransactionDetails> details) {
+    public ExpenseRecyclerAdapter(Context mContext, ArrayList<TransactionDetails> details, ArrayList<TransactionDetails> allTransactionDetails, String msg) {
         this.mContext = mContext;
         transactionDetails = details;
+        this.allTransactionDetails = allTransactionDetails;
+        this.msg = msg;
     }
 
-    private ExpenseRecyclerAdapter getInstance(){
+    private ExpenseRecyclerAdapter getInstance() {
         return this;
     }
+
     @Override
     public ExpenseViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.expense_presenter, parent, false);
@@ -55,13 +61,17 @@ public class ExpenseRecyclerAdapter extends RecyclerView.Adapter<ExpenseRecycler
 
     @Override
     public void onBindViewHolder(ExpenseViewHolder holder, final int position) {
+
         TransactionDetails transact = transactionDetails.get(position);
+
+        RelativeLayout expLayout = (RelativeLayout) holder.itemView.findViewById(R.id.relativeLayout);
         TextView expId = (TextView) holder.itemView.findViewById(R.id.expense_id);
         TextView expType = (TextView) holder.itemView.findViewById(R.id.expense_type);
         TextView expAmnt = (TextView) holder.itemView.findViewById(R.id.expense_amount);
         TextView expDate = (TextView) holder.itemView.findViewById(R.id.expense_date);
         TextView expDesc = (TextView) holder.itemView.findViewById(R.id.expense_desc);
         TextView expVerfied = (TextView) holder.itemView.findViewById(R.id.verified);
+
 
         expId.setText(Html.fromHtml("Order Id: <b>" + transact.getId() + "</b>"));
         expType.setText(transact.getCategory());
@@ -80,7 +90,7 @@ public class ExpenseRecyclerAdapter extends RecyclerView.Adapter<ExpenseRecycler
             }
         }
 
-        expVerfied.setOnClickListener(new View.OnClickListener() {
+        expLayout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 showRadioButtonDialog(position);
@@ -115,52 +125,36 @@ public class ExpenseRecyclerAdapter extends RecyclerView.Adapter<ExpenseRecycler
         }
     }
 
-    /*private String getDateFormatted(String time){
-
-        String defaultTimezone = TimeZone.getDefault().getID();
-        try {
-            Date date = (new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")).parse(time.replaceAll("Z$", "+0000"));
-            return date.toString();
-        } catch (ParseException e) {
-            e.printStackTrace();
-            return time;
-        }
-    }*/
-
-    private void callApiMethod(){
+    private void callApiMethod() {
         Retrofit retrofit = new Retrofit.Builder().baseUrl("https://jsonblob.com").addConverterFactory(GsonConverterFactory.create()).build();
-        //Creating an object of our api interface
         API request = retrofit.create(API.class);
         ExpenseResponse response = new ExpenseResponse();
-        response.setTransactionDetails(transactionDetails);
+        response.setTransactionDetails(allTransactionDetails);
 
         Call<ExpenseResponse> call = request.callApi(response);
-
         call.enqueue(new Callback<ExpenseResponse>() {
             @Override
             public void onResponse(Call<ExpenseResponse> call, Response<ExpenseResponse> response) {
-                ExpenseResponse expenses = response.body();
+                Log.d("Succeeded", call.request().url().toString());
             }
 
             @Override
             public void onFailure(Call<ExpenseResponse> call, Throwable t) {
                 Log.d("Failed", t.getMessage().toString() + call.request().url());
-
+                Toast.makeText(mContext, "Check your internet connection", Toast.LENGTH_LONG).show();
             }
         });
     }
+
     private void showRadioButtonDialog(final int position) {
 
-        // custom dialog
         final Dialog dialog = new Dialog(mContext);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.radiobutton_dialog);
         List<String> stringList = new ArrayList<>();  // here is list
-        // for (int i = 0; i < 5; i++) {
         stringList.add("verified");
         stringList.add("fraud");
         stringList.add("unverified");
-        // }
         RadioGroup rg = (RadioGroup) dialog.findViewById(R.id.radio_group);
 
         rg.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
@@ -171,8 +165,19 @@ public class ExpenseRecyclerAdapter extends RecyclerView.Adapter<ExpenseRecycler
                 for (int x = 0; x < childCount; x++) {
                     RadioButton btn = (RadioButton) group.getChildAt(x);
                     if (btn.getId() == checkedId) {
-                        Log.e("selected RadioButton->", btn.getText().toString());
                         transactionDetails.get(position).setState(btn.getText().toString());
+                        if (!msg.equals("All")) {
+                            for (TransactionDetails transact : allTransactionDetails) {
+
+                                if (transact.getId().equals(transactionDetails.get(position).getId())) {
+                                    int pos = transactionDetails.indexOf(transact);
+                                    transact.setState(btn.getText().toString());
+                                    allTransactionDetails.remove(transact);
+                                    allTransactionDetails.add(pos, transact);
+                                    break;
+                                }
+                            }
+                        }
                         getInstance().notifyDataSetChanged();
                         dialog.dismiss();
                         callApiMethod();
@@ -186,9 +191,7 @@ public class ExpenseRecyclerAdapter extends RecyclerView.Adapter<ExpenseRecycler
             rb.setText(stringList.get(i));
             rg.addView(rb);
         }
-
         dialog.show();
-
     }
 
     public String getDateFormatted(String time) {

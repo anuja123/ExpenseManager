@@ -7,12 +7,12 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.widget.LinearLayout;
 
 import com.razorpay.android.expensemanager.fragments.MainFragment;
-import com.razorpay.android.expensemanager.fragments.RechargeFragment;
-import com.razorpay.android.expensemanager.fragments.TaxiFragment;
 import com.razorpay.android.expensemanager.model.API;
 import com.razorpay.android.expensemanager.model.ExpenseResponse;
 import com.razorpay.android.expensemanager.model.TransactionDetails;
@@ -28,35 +28,20 @@ import retrofit2.converter.gson.GsonConverterFactory;
 import static com.razorpay.android.expensemanager.fragments.MainFragment.EXTRA_MESSAGE;
 
 public class MainActivity extends AppCompatActivity {
-    private ExpenseResponse expenses, jsonResponse;
+    private ExpenseResponse expenses;
     private ViewPager mViewPager;
     private ViewPagerAdapter mAdapter;
-    private ArrayList<Fragment> vpFragments;
     private TabLayout tabLayout;
-    private android.app.ActionBar actionBar;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         getExpenseDetails();
-
-
-    }
-
-    public void setTitle() {
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        toolbar.setTitle("Tab1");
     }
 
     public void getExpenseDetails() {
-        //While the app fetched data we are displaying a progress dialog
-
-        //Creating a rest adapter
         Retrofit retrofit = new Retrofit.Builder().baseUrl("https://jsonblob.com").addConverterFactory(GsonConverterFactory.create()).build();
-        //Creating an object of our api interface
         API request = retrofit.create(API.class);
         Call<ExpenseResponse> call = request.getExpenses();
 
@@ -64,7 +49,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<ExpenseResponse> call, Response<ExpenseResponse> response) {
                 expenses = response.body();
-                jsonResponse = response.body();
                 updateResponse(expenses);
             }
 
@@ -78,16 +62,15 @@ public class MainActivity extends AppCompatActivity {
 
     private ArrayList<Fragment> getFragments(ExpenseResponse response) {
         ArrayList<Fragment> fList = new ArrayList<Fragment>();
-        fList.add(new MainFragment().newInstance("All", this, response.getTransactionDetails()));
-        fList.add(new MainFragment().newInstance("Recharge", this, filterRechargeDetails(response)));
-        fList.add(new MainFragment().newInstance("Taxi", this, filterTaxiDetails(response)));
+        fList.add(new MainFragment().newInstance("All", this, response.getTransactionDetails(), response.getTransactionDetails()));
+        fList.add(new MainFragment().newInstance("Recharge", this, filterRechargeDetails(response), response.getTransactionDetails()));
+        fList.add(new MainFragment().newInstance("Taxi", this, filterTaxiDetails(response), response.getTransactionDetails()));
         return fList;
     }
 
     private ArrayList<TransactionDetails> filterRechargeDetails(ExpenseResponse response) {
         ArrayList<TransactionDetails> rechargeTrasactions = new ArrayList<>();
         ArrayList<TransactionDetails> totalTrasactions = response.getTransactionDetails();
-
         for (TransactionDetails transactionDetails : totalTrasactions) {
             if (transactionDetails.getCategory().equals("Recharge"))
                 rechargeTrasactions.add(transactionDetails);
@@ -106,14 +89,8 @@ public class MainActivity extends AppCompatActivity {
         return taxiDetails;
     }
 
-    private ExpenseResponse getResponse() {
-        return jsonResponse;
-    }
-
     private void updateResponse(ExpenseResponse response) {
-        //getFragmentManager().beginTransaction().replace()
         ArrayList<Fragment> fragments = getFragments(response);
-
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         toolbar.setTitle("Expense Manager");
@@ -121,28 +98,28 @@ public class MainActivity extends AppCompatActivity {
         mViewPager = (ViewPager) findViewById(R.id.viewpager);
         mViewPager.setOffscreenPageLimit(2);
         mAdapter = new ViewPagerAdapter(getSupportFragmentManager(), fragments);
-
-
         mViewPager.setAdapter(mAdapter);
         tabLayout.setupWithViewPager(mViewPager);
 
         mViewPager.setOnPageChangeListener(new ViewPager.OnPageChangeListener() {
             @Override
             public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-            //    Log.d("Page Scrolled" , position + "");
             }
 
             @Override
             public void onPageSelected(int position) {
+                LinearLayout ll;
+                RecyclerView rv;
+                if (mViewPager.getChildAt(position) instanceof LinearLayout) {
+                    ll = (LinearLayout) mViewPager.getChildAt(position);
+                    rv = (RecyclerView) ll.findViewById(R.id.rv_expenses);
+                    rv.getAdapter().notifyDataSetChanged();
+                }
                 mViewPager.getAdapter().notifyDataSetChanged();
-                Log.d("Page Selected" , position + "");
-
             }
 
             @Override
             public void onPageScrollStateChanged(int state) {
-            //    Log.d("Page Scroll State" , state + "");
-
             }
         });
     }
@@ -175,26 +152,9 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public CharSequence getPageTitle(int position) {
-            MainFragment mf = null;
-            RechargeFragment rf = null;
-            TaxiFragment tf = null;
             Fragment fragment = fragments.get(position);
-            String s = fragment.getArguments().getString(EXTRA_MESSAGE);
-
-            return s;
-
-            /*if(fragments.get(position) instanceof  MainFragment){
-                mf =(MainFragment) fragments.get(position);
-                return mf.getTitle();
-            } else if(fragments.get(position) instanceof  RechargeFragment){
-                rf = (RechargeFragment) fragments.get(position);
-                return rf.getTitle();
-            } else if(fragments.get(position) instanceof TaxiFragment){
-                tf = (TaxiFragment) fragments.get(position);
-                return tf.getTitle();
-            }
-            else
-                return "All";*/
+            String title = fragment.getArguments().getString(EXTRA_MESSAGE);
+            return title;
 
         }
     }

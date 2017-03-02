@@ -16,7 +16,7 @@ public class ExpenseResponse implements Parcelable {
     @SerializedName("expenses")
     private ArrayList<TransactionDetails> transactionDetails;
 
-    public ExpenseResponse(){
+    public ExpenseResponse() {
 
     }
 
